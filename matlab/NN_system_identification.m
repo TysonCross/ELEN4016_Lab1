@@ -7,14 +7,14 @@ clc; close all;
 
 %{ 
  Data signal generation-> 
-   0:=random_stepped
-   1:=random_smooth
-   2:=random_sinudoidal
+   1:=random_stepped
+   2:=random_walk
+   3:=random_sinudoidal
 %}
 
 % Phases to run
-use_cached_data     = 0         % if false, generate new data
-signal_choice       = 2         % Data signal generation
+use_cached_data     = 1         % if false, generate new data
+signal_choice       = 1         % Data signal generation
 use_cached_net      = 1         % if false, generate new NARX net
 do_train            = 0         % if true, perform training
 recover_checkpoint  = 0         % if training did not finish, use checkpoint
@@ -28,13 +28,13 @@ if (use_cached_data==false)
 
     time_step = 0.01;
     max_voltage = 5;
-    num_entries = 5e4;
+    num_entries = 2e5;
     t = linspace(0,time_step*num_entries,num_entries);
     start_at = 10;
 
     
     switch signal_choice
-       case 0 % random_stepped
+       case 1 % random_stepped
            i = start_at;
            voltage = zeros(i,1,1)';
            while i<num_entries
@@ -54,30 +54,32 @@ if (use_cached_data==false)
                end
                i = i + time_jump;
            end
+           signal_name = 'Stepped';
            
-       case 1 % smooth_random
+       case 2 % random_walk
             divisions = ceil(num_entries/round(sqrt(num_entries)));
-            sample_coarse = linspace(1,num_entries,divisions)
-            sample_fine = linspace(1,num_entries,num_entries)
+            sample_coarse = linspace(1,num_entries,divisions);
+            sample_fine = linspace(1,num_entries,num_entries);
             value_coarse = max_voltage*rand([divisions 1])';
             value_fine = interp1(sample_coarse, value_coarse, sample_fine,'spline');
             voltage = min(max(-max_voltage,value_fine*2 - max_voltage), max_voltage);
             voltage(1:start_at) = 0;
+            signal_name = 'Walk';
             
-       case 2 % random_sinudoidal
+       case 3 % random_sinudoidal
            voltage = zeros(num_entries,1,1)';
-           max_freq = 0.1;
-           min_freq = -0.1;
+           max_freq = 0.01;
+           min_freq = -0.01;
            divisions = num_entries*1e-3;
            freq_val = linspace(min_freq,max_freq,num_entries/divisions);
-           freqs = sin(freq_val.*pi.*t(1:divisions:end))
+           freqs = sin(freq_val.*pi.*t(1:divisions:end));
            freq_range = 1e-2*(repmat(freqs,1,divisions*2));
            freq = freq_range(1);
            offset = 0;
            magnitude = 1;
            for i = start_at:num_entries
                chance = rand();
-               if (chance<0.01)
+               if (chance<0.5)
                     freq = 2*pi*freq_range(i);
                end
                if (chance<0.001)
@@ -86,9 +88,10 @@ if (use_cached_data==false)
                if (chance<0.02)
                    magnitude = min(max(0.1,rand()*2),2);
                end
-                 voltage_value = magnitude*sin(freq*t(i));
+               voltage_value = magnitude*sin(freq*t(i));
                voltage(i) = min(max(-max_voltage,voltage_value + offset), max_voltage);
            end
+           signal_name = 'Sinusoidal';
            
        otherwise
            disp('No signal specified! Script stopped.')
@@ -117,6 +120,8 @@ if (use_cached_data==false)
     % prepare the data after simulation
     in_data = num2cell(input.Data(:)');
     target_data = num2cell(output.Data(1:end-1)');
+%     lag = round(mean(nncorr(cell2mat(in_data),cell2mat(target_data),num_entries-1)));
+
 
     plot_inputOutput;
         
@@ -127,12 +132,13 @@ if (use_cached_data==false)
 
     save('cache/IO_data',...
         'in_data','target_data',...
-        'time_step','t', 'model');
+        'time_step','t', 'model','signal_name');
     clear v_input voltage_steps out_temp tout v_1 v_2 i input output 
     clear time_jump max_voltage num_entries voltage_now max_time_jump 
     clear freq time_input max_frew min_freq grow chance
     clear divisions sample_coarse sample_fine value_coarse value_fine 
     clear max_freq min_freq freq_val freqs freq_range freq offset magnitude
+    clear j i min_time_jump model out_data start_at
     disp("Data generated") 
 else
     load('cache/IO_data');
@@ -149,7 +155,7 @@ if (use_cached_net==false)
     % NN setup
     input_delays = 1:2;
     feedback_delays = 1:2;
-    hidden_layers = 10;
+    hidden_layers = 8;
     net = narxnet(input_delays,feedback_delays,hidden_layers);
     net.divideFcn = 'divideblock';
     net.divideParam.trainRatio = 75/100;
@@ -157,7 +163,8 @@ if (use_cached_net==false)
     net.divideParam.testRatio = 10/100;
 
     save('cache/NN_model',...
-        'trained_status','net');
+        'trained_status','net',...
+        'hidden_layers','input_delays','feedback_delays');
     clear numelements indices indices indices_new indices_main
     disp('Cached untrained NARX net')
 else
@@ -209,7 +216,8 @@ if do_train
     
     save('cache/NN_model','inputs','feedbackDelays','layerStates','targets',...
         'in_data','target_data','TR',...
-        'trained_status','training_complete','net');
+        'trained_status','training_complete','net',...
+        'hidden_layers','input_delays','feedback_delays');
     disp('Cached trained NARX net')
 end
     
@@ -218,7 +226,7 @@ end
 if trained_status
     % simulate the network and plot the resulting errors
     outputs = sim(net,inputs,feedbackDelays);
-    errors = gsubtract(targets,outputs);
+    errors = gsubtract(targets(TR.testInd),outputs(TR.testInd));
     performance_open = perform(net,targets,outputs)
 
     % figures
@@ -238,8 +246,8 @@ if trained_status
         preparets(net_closed,in_data,{},target_data);
     outputs_closed  = net_closed(inputs_c,{},layerStates_c);
     % outputs_closed_sim  = sim(net_closed,inputs_c,{});
-    errors_closed = gsubtract(targets_c,outputs_closed);
-    performance_closed = perform(net_closed,targets_c,outputs_closed)
+    errors_closed = gsubtract(targets_c(TR.testInd),outputs_closed(TR.testInd));
+    performance_closed = perform(net_closed,targets_c,outputs_closed);
 
     % figures
     if make_images
@@ -263,7 +271,11 @@ if (archive_net) && (trained_status)
    if (exist(currentFileName)==2)
        hash_str = mlreportgen.utils.hash(string(datetime('now')));
        [y,m,d] = ymd(datetime('now'));
-       foldername = strcat("cache/", string(y), '_', string(m), '_', string(d), '_', extractBefore(hash_str,8));
+       foldername = strcat("cache/", string(y), '_', string(m),...
+           '_', string(d), '_', signal_name, '_',...
+           num2str(max(input_delays)), '_', ...
+           num2str(max(feedback_delays)), '_',...
+           num2str(hidden_layers), '_', extractBefore(hash_str,8));
        mkdir(foldername);
        copyfile(currentFileName, foldername);
        copyfile('cache/NN_model.mat',foldername);
@@ -285,9 +297,12 @@ if (archive_net) && (trained_status)
            close all;
        end
        gensim(net_closed,time_step);
-       fn = sprintf('%s/narx_net.slx',foldername);
+       fn = sprintf('%s/narx_net_%s.slx',foldername,signal_name);
        save_system(gcs,fn)
        bdclose(gcs);
+       diary(strcat(foldername,'/training_info.txt'));
+       TR
+       diary off;
        fprintf("Data archived in %s\n",foldername)
    else
        dprintf('WARNING: %s does not exist!\n',currentFileName);
