@@ -1,0 +1,25 @@
+           voltage = zeros(num_entries,1,1)';
+           max_freq = 1e-10;
+           min_freq = 1e-12;
+           divisions = num_entries/100;
+%            freqs = linspace(min_freq,max_freq,num_entries/divisions);
+           freqs = sin(pi*t(1:divisions:end))
+%            freqs = [freqs flip(freqs)]
+           freq_range = repmat(freqs,1,divisions*2);
+           freq = freq_range(1);
+           offset = 0;
+           for i = 1:(num_entries-start_at)
+               chance = rand();
+%                grow=1/(t(i)/max(t))/max(t);
+               freq = 2*freq_range(i)*pi;
+               if (chance<0.01)
+                   offset = rand()*max_voltage*2 - max_voltage;
+               end
+                 voltage_value = sin(freq*t(i));
+%                voltage_value = 0.9*max_voltage*sin(freq*t(i));
+%                voltage(i) = voltage_value + offset;
+               voltage(i) = min(max(-max_voltage,voltage_value + offset), max_voltage);
+               check_freq(i) = freq;
+           end
+           voltage = flip(voltage);
+           plot(voltage)
