@@ -13,13 +13,13 @@ clc; close all;
 %}
 
 % Phases to run
-use_cached_data     = 1         % if false, generate new data
-signal_choice       = 1         % Data signal generation
-use_cached_net      = 1         % if false, generate new NARX net
-do_train            = 0         % if true, perform training
+use_cached_data     = 0         % if false, generate new data
+signal_choice       = 3         % Data signal generation
+use_cached_net      = 0         % if false, generate new NARX net
+do_train            = 1         % if true, perform training
 recover_checkpoint  = 0         % if training did not finish, use checkpoint
-archive_net         = 0         % archive NN, data and figures to subfolder
-make_images         = 0         % generate performance figures
+archive_net         = 1         % archive NN, data and figures to subfolder
+make_images         = 1         % generate performance figures
 
 
 %% Data generation phase
@@ -155,7 +155,7 @@ if (use_cached_net==false)
     % NN setup
     input_delays = 1:2;
     feedback_delays = 1:2;
-    hidden_layers = 8;
+    hidden_layers = 2;
     net = narxnet(input_delays,feedback_delays,hidden_layers);
     net.divideFcn = 'divideblock';
     net.divideParam.trainRatio = 75/100;
@@ -253,7 +253,7 @@ if trained_status
     if make_images
         plot_trainPerform;
         plot_trainState;
-        plot_trainRegression;
+%         plot_trainRegression;
         plot_outputClosed;
         plot_errorClosed;
         pause(4)                        % delay for java object -> figure
@@ -297,7 +297,7 @@ if (archive_net) && (trained_status)
            close all;
        end
        gensim(net_closed,time_step);
-       fn = sprintf('%s/narx_net_%s.slx',foldername,signal_name);
+       fn = sprintf('%s/narx_net.slx',foldername);
        save_system(gcs,fn)
        bdclose(gcs);
        diary(strcat(foldername,'/training_info.txt'));

@@ -1,9 +1,10 @@
 % Generate data inputs
-close all; clear all; clc;
+% clear all;
+close all; clc;
 
 time_step = 0.01;
 max_voltage = 5;
-num_entries = 5e4;
+num_entries = 5e5;
 t = linspace(0,time_step*num_entries,num_entries);
 start_at = 10;
 
@@ -30,7 +31,7 @@ end
 
 voltage = voltage(1:num_entries); % clip off unwanted extra values.
 input_data{1} = {voltage};
-signal_name{1} = 'Stepped';
+% signal_name{1} = 'Stepped';
    
 % smooth_random
 voltage = zeros(i,1,1)';
@@ -43,8 +44,8 @@ voltage = min(max(-max_voltage,value_fine*2 - max_voltage), max_voltage);
 voltage(1:start_at) = 0;
 
 voltage = voltage(1:num_entries); % clip off unwanted extra values.
-signal_name{2} = 'Walk';
 input_data{2} = {voltage};
+% signal_name{2} = {'Walk'};
             
 % random_sinudoidal
 voltage = zeros(num_entries,1,1)';
@@ -73,7 +74,7 @@ for i = start_at:num_entries
 end
 voltage = voltage(1:num_entries); % clip off unwanted extra values.
 input_data{3} = {voltage};
-signal_name{3} = 'Sinusoidal';
+% signal_name{3} = {'Sinusoidal'};
 
 
 % blackbox parameters

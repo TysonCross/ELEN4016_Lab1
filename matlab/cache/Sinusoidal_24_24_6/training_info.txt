@@ -1,0 +1,36 @@
+
+TR = 
+
+  <a href="matlab:helpPopup struct" style="font-weight:bold">struct</a> with fields:
+
+        trainFcn: 'trainlm'
+      trainParam: [1×1 struct]
+      performFcn: 'mse'
+    performParam: [1×1 struct]
+        derivFcn: 'defaultderiv'
+       divideFcn: 'divideblock'
+      divideMode: 'time'
+     divideParam: [1×1 struct]
+        trainInd: [1×149983 double]
+          valInd: [1×29996 double]
+         testInd: [1×19997 double]
+            stop: 'Validation stop.'
+      num_epochs: 261
+       trainMask: {1×199976 cell}
+         valMask: {1×199976 cell}
+        testMask: {1×199976 cell}
+      best_epoch: 255
+            goal: 0
+          states: {'epoch'  'time'  'perf'  'vperf'  'tperf'  'mu'  'gradient'  'val_fail'}
+           epoch: [1×262 double]
+            time: [1×262 double]
+            perf: [1×262 double]
+           vperf: [1×262 double]
+           tperf: [1×262 double]
+              mu: [1×262 double]
+        gradient: [1×262 double]
+        val_fail: [1×262 double]
+       best_perf: 3.0534e-04
+      best_vperf: 1.5997e-04
+      best_tperf: 5.3209e-04
+
