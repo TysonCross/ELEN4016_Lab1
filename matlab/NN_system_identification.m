@@ -7,6 +7,7 @@ clc; close all;
 
 %{ 
  Data signal generation-> 
+   0:=standard_step (positive step input)
    1:=random_stepped
    2:=random_walk
    3:=random_sinudoidal
@@ -14,7 +15,7 @@ clc; close all;
 
 % Phases to run
 use_cached_data     = 0         % if false, generate new data
-signal_choice       = 3         % Data signal generation
+signal_choice       = 1         % Data signal generation
 use_cached_net      = 0         % if false, generate new NARX net
 do_train            = 1         % if true, perform training
 recover_checkpoint  = 0         % if training did not finish, use checkpoint
@@ -34,6 +35,29 @@ if (use_cached_data==false)
 
     
     switch signal_choice
+       case 0 % positive step
+           voltage = ones(num_entries,1)'*max_voltage;
+           voltage(1:10) = 0;
+           voltage_now = t(1)/max(t) * max_voltage;
+           jump = ceil((num_entries-start_at)*time_step)*0.1;
+           i = start_at;
+
+           while i < num_entries-jump
+               grow = t(i)/max(t);
+               for j = 1:jump-1
+                   if j<(jump-1)*.7
+                       voltage_now = grow*max_voltage;
+                   else
+                       voltage_now = 0;
+                   end
+                   voltage(i+j) = voltage_now;
+               end
+               i = i + jump;
+               jump = jump + 100;
+               voltage(i) = voltage_now;
+           end
+           signal_name = 'Standard';
+           
        case 1 % random_stepped
            i = start_at;
            voltage = zeros(i,1,1)';
@@ -155,9 +179,13 @@ if (use_cached_net==false)
     % NN setup
     input_delays = 1:2;
     feedback_delays = 1:2;
-    hidden_layers = 2;
+    hidden_layers = 10;
     net = narxnet(input_delays,feedback_delays,hidden_layers);
-    net.divideFcn = 'divideblock';
+    if strcmp(signal_name,'Standard')
+        net.divideFcn = 'divideint';
+    else
+        net.divideFcn = 'divideblock';
+    end
     net.divideParam.trainRatio = 75/100;
     net.divideParam.valRatio = 15/100;
     net.divideParam.testRatio = 10/100;
